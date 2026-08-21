@@ -23,13 +23,12 @@ Mirrors the clinic stack exactly:
 
 | Config | `client_host` | `is_local` | `/admin` |
 | --- | --- | --- | --- |
-| default (`DEMO_TRUSTED_PROXY` unset) | Vercel internal edge IP (private range) | **true** | **200 — anonymous admin** |
-| `DEMO_TRUSTED_PROXY=*` (Vercel overwrites XFF) | visitor's real public IP | false | 403 |
+| default (`DEMO_TRUSTED_PROXY` unset) | **visitor's real public IP** (Vercel edge auto-rewrites) | **false** | **403** |
+| `DEMO_TRUSTED_PROXY=*` | visitor's real public IP | false | 403 |
 
-Caveat: with `*`, if a request arrives **without** `X-Forwarded-For`, the raw
-peer address is used — which on Vercel is still a private edge IP → local →
-admin. Safe only because Vercel always sets XFF; never reuse `*` on an
-infrastructure that doesn't guarantee it.
+**Key finding:** Vercel's Python runtime automatically parses `X-Forwarded-For` and rewrites `request.client.host` at the edge layer before the request hits your function. The in-app `ProxyHeadersMiddleware` is effectively a no-op on Vercel — it receives the already-rewritten client.
+
+The "anonymous admin" bug **only reproduces** on platforms where the raw internal proxy IP reaches the app (self-hosted uvicorn without `--forwarded-allow-ips`, or behind a misconfigured nginx).
 
 ## Verify
 
